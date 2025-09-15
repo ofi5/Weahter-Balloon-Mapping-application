@@ -42,7 +42,14 @@ export default function Challenge() {
           Array.from({ length: 23 }, (_, i) => tryFetch(`/treasure/${String(i + 1).padStart(2, "0")}.json`))
         );
         const rawSnapshots = [latest, ...history].filter(Boolean);
-        setRaw(rawSnapshots[0] || null);
+        // Pad to 24 entries in production if only a subset is available (e.g., missing 01-23.json on GH Pages)
+        let padded = rawSnapshots;
+        if (padded.length > 0 && padded.length < 24) {
+          const last = padded[padded.length - 1];
+          padded = padded.concat(Array.from({ length: 24 - padded.length }, () => last));
+          console.warn(`Only ${rawSnapshots.length} hour(s) available; padded to 24 for display.`);
+        }
+        setRaw(padded[0] || null);
 
         // Normalize snapshots to shape: { positions: [{ lat, lon, alt }, ...] }
         const normalizeSnapshot = (snapshot) => {
@@ -54,7 +61,7 @@ export default function Challenge() {
           return { positions: [] };
         };
 
-        const normalized = rawSnapshots.map(normalizeSnapshot);
+        const normalized = padded.map(normalizeSnapshot);
         // Keep only the first balloon per hour
         const reduced = normalized.map(s => ({
           positions: Array.isArray(s.positions) && s.positions.length ? [s.positions[0]] : []
