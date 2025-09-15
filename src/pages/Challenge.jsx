@@ -8,7 +8,6 @@ export default function Challenge() {
   // Use same-origin path so dev uses Vite proxy and prod uses Netlify function
   const WB_BASE = '/wb';
   const [balloons, setBalloons] = useState([]);
-  const [raw, setRaw] = useState(null);
   const [fetchError, setFetchError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogLoading, setDialogLoading] = useState(false);
@@ -40,7 +39,6 @@ export default function Challenge() {
         if (failedHours.length) setFetchError(`Failed hour(s): ${failedHours.join(', ')}`);
 
         const rawSnapshots = succeeded;
-        setRaw(rawSnapshots[0] || null);
 
         const normalizeSnapshot = (snapshot) => {
           if (!snapshot) return { positions: [] };
