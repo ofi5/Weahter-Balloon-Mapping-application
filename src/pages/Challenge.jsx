@@ -2,11 +2,16 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import BalloonMap from "../components/BalloonMap";
 import DataChart from "../components/DataChart";
-import { Typography, Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, Paper } from "@mui/material";
+import { Typography, Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress } from "@mui/material";
 
 export default function Challenge() {
   const [balloons, setBalloons] = useState([]);
   const [raw, setRaw] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogLoading, setDialogLoading] = useState(false);
+  const [dialogError, setDialogError] = useState("");
+  const [dialogPlace, setDialogPlace] = useState(null);
+  const [dialogCoords, setDialogCoords] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -49,9 +54,29 @@ export default function Challenge() {
     ? balloons[0].positions[0]
     : null;
 
+  const handleRowClick = async (pos, hourIndex) => {
+    if (!pos || typeof pos.lat !== 'number' || typeof pos.lon !== 'number') return;
+    setDialogCoords({ lat: pos.lat, lon: pos.lon, hourIndex });
+    setDialogOpen(true);
+    setDialogLoading(true);
+    setDialogError("");
+    setDialogPlace(null);
+    try {
+      const res = await axios.get('https://api.bigdatacloud.net/data/reverse-geocode-client', {
+        params: { latitude: pos.lat, longitude: pos.lon, localityLanguage: 'en' }
+      });
+      setDialogPlace(res.data || null);
+    } catch (err) {
+      console.error(err);
+      setDialogError('Failed to fetch location details.');
+    } finally {
+      setDialogLoading(false);
+    }
+  };
+
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>Live Balloon Data</Typography>
+      <Typography variant="h4" gutterBottom align="center">Live Balloon 1 Data</Typography>
       <BalloonMap balloons={balloons} />
       <Box mt={4}>
         <DataChart balloons={balloons} externalData={[]} />
@@ -64,7 +89,7 @@ export default function Challenge() {
   : 'Loading...'}
       </pre>
 
-      <Typography variant="h6" sx={{ mt: 3 }}>First Balloon Per Hour</Typography>
+      <Typography variant="h6" sx={{ mt: 3 }}>First Balloon Per Hour(click for more details)</Typography>
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
         <Table size="small">
           <TableHead>
@@ -78,8 +103,9 @@ export default function Challenge() {
           <TableBody>
             {balloons.map((s, i) => {
               const p = Array.isArray(s.positions) && s.positions.length ? s.positions[0] : null;
+              const clickable = !!(p && typeof p.lat === 'number' && typeof p.lon === 'number');
               return (
-                <TableRow key={i}>
+                <TableRow key={i} hover onClick={() => clickable && handleRowClick(p, i)} sx={{ cursor: clickable ? 'pointer' : 'default' }}>
                   <TableCell>{`T-${i}h`}</TableCell>
                   <TableCell>{p ? (typeof p.lat === 'number' ? p.lat.toFixed(4) : p.lat) : '-'}</TableCell>
                   <TableCell>{p ? (typeof p.lon === 'number' ? p.lon.toFixed(4) : p.lon) : '-'}</TableCell>
@@ -90,6 +116,38 @@ export default function Challenge() {
           </TableBody>
         </Table>
       </Paper>
+
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>
+          {dialogCoords ? `Location Details for T-${dialogCoords.hourIndex}h` : 'Location Details'}
+        </DialogTitle>
+        <DialogContent dividers>
+          {dialogLoading ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <CircularProgress size={22} />
+              <Typography>Fetching location…</Typography>
+            </Box>
+          ) : dialogError ? (
+            <Typography color="error">{dialogError}</Typography>
+          ) : dialogPlace ? (
+            <Box>
+              <Typography><b>City</b>: {dialogPlace.city || dialogPlace.locality || '-'}</Typography>
+              <Typography><b>Region</b>: {dialogPlace.principalSubdivision || '-'}</Typography>
+              <Typography><b>Country</b>: {dialogPlace.countryName || '-'}</Typography>
+              {dialogCoords ? (
+                <Typography sx={{ mt: 1 }} color="text.secondary">
+                  Lat: {dialogCoords.lat.toFixed?.(6)} | Lon: {dialogCoords.lon.toFixed?.(6)}
+                </Typography>
+              ) : null}
+            </Box>
+          ) : (
+            <Typography color="text.secondary">No data.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

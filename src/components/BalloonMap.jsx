@@ -23,6 +23,8 @@ export default function BalloonMap({ balloons }) {
   const center = positions.length ? [positions[0].lat, positions[0].lon] : [0, 0];
 
   return (
+    <>
+    <Typography variant="h6">Balloon 1 Map</Typography>
     <Box sx={{ height: '400px', width: '100%' }}>
       <MapContainer center={center} zoom={2} style={{ height: '100%', width: '100%' }}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -36,5 +38,6 @@ export default function BalloonMap({ balloons }) {
         ))}
       </MapContainer>
     </Box>
+    </>
   );
 }
