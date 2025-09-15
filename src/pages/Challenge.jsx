@@ -5,6 +5,7 @@ import DataChart from "../components/DataChart";
 import { Typography, Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress } from "@mui/material";
 
 export default function Challenge() {
+  const WB_BASE = import.meta.env.MODE === 'development' ? '/wb' : 'https://a.windbornesystems.com';
   const [balloons, setBalloons] = useState([]);
   const [raw, setRaw] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -17,10 +18,10 @@ export default function Challenge() {
     async function fetchData() {
       try {
         // Fetch latest + past 23 hours of balloon data
-        const latest = await axios.get("/wb/treasure/00.json");
+        const latest = await axios.get(`${WB_BASE}/treasure/00.json`);
         const history = await Promise.all(
           Array.from({ length: 23 }, (_, i) =>
-            axios.get(`/wb/treasure/${String(i + 1).padStart(2, "0")}.json`).then(res => res.data).catch(() => null)
+            axios.get(`${WB_BASE}/treasure/${String(i + 1).padStart(2, "0")}.json`).then(res => res.data).catch(() => null)
           )
         );
         const rawSnapshots = [latest.data, ...history.filter(Boolean)];
