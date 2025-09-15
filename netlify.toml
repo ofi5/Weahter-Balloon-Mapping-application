@@ -5,15 +5,15 @@
 [functions]
   directory = "netlify/functions"
 
-# SPA fallback
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
 [[redirects]]
   from = "/wb/*"
   to = "/.netlify/functions/wb?path=:splat"
+  status = 200
+
+# SPA fallback (kept last so it doesn't capture /wb/*)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
 
 
