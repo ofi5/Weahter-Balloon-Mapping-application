@@ -9,7 +9,7 @@ export default defineConfig({
         target: 'https://a.windbornesystems.com',
         changeOrigin: true,
         secure: true,
-        rewrite: (path) => path.replace(/^\/wb/, '')
+        rewrite: (p) => p.replace(/^\/wb\//, '/')
       }
     }
   }

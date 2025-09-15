@@ -2,15 +2,14 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import BalloonMap from "../components/BalloonMap";
 import DataChart from "../components/DataChart";
-import { Typography, Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress } from "@mui/material";
+import { Typography, Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress, Alert } from "@mui/material";
 
 export default function Challenge() {
-  // Use same-origin /wb in both dev (Vite proxy) and prod (Netlify redirect) to avoid CORS
+  // Use same-origin path so dev uses Vite proxy and prod uses Netlify function
   const WB_BASE = '/wb';
-  const APP_BASE = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
-  const LOCAL_BASE = `${APP_BASE}/wb`;
   const [balloons, setBalloons] = useState([]);
   const [raw, setRaw] = useState(null);
+  const [fetchError, setFetchError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogLoading, setDialogLoading] = useState(false);
   const [dialogError, setDialogError] = useState("");
@@ -20,39 +19,29 @@ export default function Challenge() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Helper to try remote first, then local static as fallback
-        const tryFetch = async (path) => {
-          // Try remote host
-          try {
-            const res = await axios.get(`${WB_BASE}${path}`);
-            return res.data || null;
-          } catch (e) {
-            // Fallback to local static under BASE_URL (GitHub Pages)
-            try {
-              const resLocal = await axios.get(`${LOCAL_BASE}${path}`);
-              return resLocal.data || null;
-            } catch (e2) {
-              return null;
-            }
-          }
-        };
-
-        // Fetch latest + past 23 hours of balloon data
-        const latest = await tryFetch(`/treasure/00.json`);
-        const history = await Promise.all(
-          Array.from({ length: 23 }, (_, i) => tryFetch(`/treasure/${String(i + 1).padStart(2, "0")}.json`))
+        setFetchError("");
+        // Fetch hours 00-23 directly from live API via same-origin proxy.
+        const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+        const results = await Promise.allSettled(
+          hours.map(hh => axios.get(`${WB_BASE}/treasure/${hh}.json`))
         );
-        const rawSnapshots = [latest, ...history].filter(Boolean);
-        // Pad to 24 entries in production if only a subset is available (e.g., missing 01-23.json on GH Pages)
-        let padded = rawSnapshots;
-        if (padded.length > 0 && padded.length < 24) {
-          const last = padded[padded.length - 1];
-          padded = padded.concat(Array.from({ length: 24 - padded.length }, () => last));
-          console.warn(`Only ${rawSnapshots.length} hour(s) available; padded to 24 for display.`);
+        const succeeded = [];
+        const failedHours = [];
+        results.forEach((r, idx) => {
+          if (r.status === 'fulfilled') succeeded.push(r.value.data);
+          else failedHours.push(hours[idx]);
+        });
+        if (succeeded.length === 0) {
+          setFetchError('Failed to fetch live data for all hours.');
+          setRaw(null);
+          setBalloons([]);
+          return;
         }
-        setRaw(padded[0] || null);
+        if (failedHours.length) setFetchError(`Failed hour(s): ${failedHours.join(', ')}`);
 
-        // Normalize snapshots to shape: { positions: [{ lat, lon, alt }, ...] }
+        const rawSnapshots = succeeded;
+        setRaw(rawSnapshots[0] || null);
+
         const normalizeSnapshot = (snapshot) => {
           if (!snapshot) return { positions: [] };
           if (Array.isArray(snapshot) && snapshot.length > 0 && Array.isArray(snapshot[0])) {
@@ -62,15 +51,15 @@ export default function Challenge() {
           return { positions: [] };
         };
 
-        const normalized = padded.map(normalizeSnapshot);
-        // Keep only the first balloon per hour
+        const normalized = rawSnapshots.map(normalizeSnapshot);
         const reduced = normalized.map(s => ({
           positions: Array.isArray(s.positions) && s.positions.length ? [s.positions[0]] : []
         }));
         setBalloons(reduced);
       } catch (err) {
-        console.error("Data fetch failed:", err);
-        console.warn('If deploying on GitHub Pages, add files under public/wb/treasure/*.json or update WB_BASE.');
+        console.error('Data fetch failed:', err);
+        setFetchError('Data fetch failed. Please try again later.');
+        setBalloons([]);
       }
     }
   
@@ -104,6 +93,7 @@ export default function Challenge() {
   return (
     <Box>
       <Typography variant="h4" gutterBottom align="center">Live Balloon 1 Data</Typography>
+      {fetchError ? <Alert severity="error" sx={{ mb: 2 }}>{fetchError}</Alert> : null}
       <BalloonMap balloons={balloons} />
       <Box mt={4}>
         <DataChart balloons={balloons} externalData={[]} />

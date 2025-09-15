@@ -2,17 +2,18 @@
   command = "npm run build"
   publish = "dist"
 
+[functions]
+  directory = "netlify/functions"
+
 # SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# Proxy API to avoid CORS by keeping same-origin requests
 [[redirects]]
   from = "/wb/*"
-  to = "https://a.windbornesystems.com/:splat"
+  to = "/.netlify/functions/wb?path=:splat"
   status = 200
-  force = true
 
 
