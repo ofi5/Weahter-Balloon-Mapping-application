@@ -5,7 +5,8 @@ import DataChart from "../components/DataChart";
 import { Typography, Box, Divider, Table, TableHead, TableRow, TableCell, TableBody, Paper, Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress } from "@mui/material";
 
 export default function Challenge() {
-  const WB_BASE = import.meta.env.MODE === 'development' ? '/wb' : 'https://a.windbornesystems.com';
+  // Use same-origin /wb in both dev (Vite proxy) and prod (Netlify redirect) to avoid CORS
+  const WB_BASE = '/wb';
   const APP_BASE = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
   const LOCAL_BASE = `${APP_BASE}/wb`;
   const [balloons, setBalloons] = useState([]);
