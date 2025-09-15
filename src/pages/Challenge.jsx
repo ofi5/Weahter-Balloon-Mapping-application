@@ -6,6 +6,8 @@ import { Typography, Box, Divider, Table, TableHead, TableRow, TableCell, TableB
 
 export default function Challenge() {
   const WB_BASE = import.meta.env.MODE === 'development' ? '/wb' : 'https://a.windbornesystems.com';
+  const APP_BASE = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+  const LOCAL_BASE = `${APP_BASE}/wb`;
   const [balloons, setBalloons] = useState([]);
   const [raw, setRaw] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -17,14 +19,29 @@ export default function Challenge() {
   useEffect(() => {
     async function fetchData() {
       try {
+        // Helper to try remote first, then local static as fallback
+        const tryFetch = async (path) => {
+          // Try remote host
+          try {
+            const res = await axios.get(`${WB_BASE}${path}`);
+            return res.data || null;
+          } catch (e) {
+            // Fallback to local static under BASE_URL (GitHub Pages)
+            try {
+              const resLocal = await axios.get(`${LOCAL_BASE}${path}`);
+              return resLocal.data || null;
+            } catch (e2) {
+              return null;
+            }
+          }
+        };
+
         // Fetch latest + past 23 hours of balloon data
-        const latest = await axios.get(`${WB_BASE}/treasure/00.json`);
+        const latest = await tryFetch(`/treasure/00.json`);
         const history = await Promise.all(
-          Array.from({ length: 23 }, (_, i) =>
-            axios.get(`${WB_BASE}/treasure/${String(i + 1).padStart(2, "0")}.json`).then(res => res.data).catch(() => null)
-          )
+          Array.from({ length: 23 }, (_, i) => tryFetch(`/treasure/${String(i + 1).padStart(2, "0")}.json`))
         );
-        const rawSnapshots = [latest.data, ...history.filter(Boolean)];
+        const rawSnapshots = [latest, ...history].filter(Boolean);
         setRaw(rawSnapshots[0] || null);
 
         // Normalize snapshots to shape: { positions: [{ lat, lon, alt }, ...] }
@@ -45,6 +62,7 @@ export default function Challenge() {
         setBalloons(reduced);
       } catch (err) {
         console.error("Data fetch failed:", err);
+        console.warn('If deploying on GitHub Pages, add files under public/wb/treasure/*.json or update WB_BASE.');
       }
     }
   
