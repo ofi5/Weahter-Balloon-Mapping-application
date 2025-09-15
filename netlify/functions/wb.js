@@ -11,8 +11,10 @@ export async function handler(event) {
   }
 
   try {
-    const urlParams = new URLSearchParams(event.queryStringParameters || {});
-    const path = (urlParams.get('path') || '').replace(/^\/+/, '');
+    // Path comes from the function path segment after /wb/
+    const rawPath = event.path || '';
+    const match = rawPath.match(/\/wb\/(.*)$/);
+    const path = match && match[1] ? match[1] : '';
     if (!path) {
       return { statusCode: 400, headers: corsHeaders, body: 'Missing path' };
     }

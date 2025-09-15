@@ -7,7 +7,7 @@
 
 [[redirects]]
   from = "/wb/*"
-  to = "/.netlify/functions/wb?path=:splat"
+  to = "/.netlify/functions/wb/:splat"
   status = 200
 
 # SPA fallback (kept last so it doesn't capture /wb/*)
